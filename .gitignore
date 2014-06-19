@@ -1,0 +1,8 @@
+*.gem
+/vendor/bundle
+.bundle
+.DS_Store
+*.slug
+slugforge_status-*.json
+/tags
+/coverage

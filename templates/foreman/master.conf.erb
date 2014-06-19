@@ -1,0 +1,21 @@
+pre-start script
+
+end script
+
+start on (net-device-up
+          and local-filesystems
+          and runlevel [2345])
+
+stop on [!2345]
+
+post-stop script
+
+# prevent rapid restarts of the application
+sleep 2
+# if the analytics log file cleaner is present, execute it
+[ -r /usr/local/bin/run_analytics_log_cleaner ] && bash /usr/local/bin/run_analytics_log_cleaner
+# This will eff with the exit value of this script and prevent restarts unless we
+# scrub our exit value.
+/bin/true
+
+end script
