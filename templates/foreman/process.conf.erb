@@ -1,0 +1,19 @@
+post-stop script
+
+# prevent rapid restarts of the application
+# It doesn't help that there is a post-stop script in the master template
+# because if this process dies it is respawned having nothing to do with
+# the master upstart config.
+sleep 5
+
+end script
+
+start on starting <%%= app %>-<%%= name %>
+stop on stopping <%%= app %>-<%%= name %>
+respawn
+
+<%% if ENV['KILL_TIMEOUT'] %>
+kill timeout <%%= ENV['KILL_TIMEOUT'] %>
+<%% end %>
+
+exec su - <%%= user %> -c 'cd <%%= engine.root %>/current ; if [ -f <%%= engine.root %>/shared/env ] ; then source <%%= engine.root %>/shared/env ; fi ; if [ -f <%%= engine.root %>/shared/env-export ] ; then source <%%= engine.root %>/shared/env-export ; fi ; <%%= ENV['RUBY_CMD'] %> <%= template_command %> 2>&1 | logger -t <%%= app %>-<%%= name %>[<%%=num%>]'

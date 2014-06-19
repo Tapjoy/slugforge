@@ -1,0 +1,9 @@
+#!/usr/bin/env ruby
+
+require File.expand_path('../../lib/slugforge', __FILE__)
+
+# Disable colored output if there is no TTY
+Thor::Base.shell = Thor::Shell::Basic unless $stdout.tty?
+
+Slugforge::Cli.start(ARGV)
+
