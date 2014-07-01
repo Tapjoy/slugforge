@@ -8,9 +8,10 @@ module Slugforge
         logger.say "Available projects:"
 
         tag_manager.projects.map do |project|
+
           out = [set_color(project, :green)]
           pc = tag_manager.slug_for_tag(project, 'production-current')
-          out << "(production-current: #{set_color(pc, :yellow)})" unless pc.empty?
+          out << "(production-current: #{set_color(pc, :yellow)})" unless pc.nil?
           out
         end.sort.each do |o|
           logger.say "  #{o * ' '}"
@@ -19,4 +20,3 @@ module Slugforge
     end
   end
 end
-

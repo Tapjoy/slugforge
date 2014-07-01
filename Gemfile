@@ -24,3 +24,8 @@ group :test do
   gem 'simplecov'
   gem 'fakefs', require: 'fakefs/safe'
 end
+
+group :development do
+  gem 'pry'
+  gem 'pry-debugger'
+end
