@@ -11,7 +11,7 @@ describe Slugforge::Helper::Fog, :config => false do
     end
   end
 
-  let(:options) {{ 'aws-access-key-id' => 'abc', 'aws-secret-key' => '123', 'slug-bucket' => 'bucket' }}
+  let(:options) {{ 'aws-access-key-id' => 'abc', 'aws-region' => 'north-pole-9', 'aws-secret-key' => '123', 'slug-bucket' => 'bucket' }}
 
   let(:command) { command_class.new [], options }
 
@@ -72,6 +72,7 @@ describe Slugforge::Helper::Fog, :config => false do
     it "should return a session hash matching what fog expects for credentials" do
       expect(command.aws_session).to eq({
         :aws_access_key_id     => session['AccessKeyId'],
+        :aws_region            => options['aws-region'],
         :aws_secret_access_key => session['SecretAccessKey'],
         :aws_session_token     => session['SessionToken']
       })

@@ -84,9 +84,10 @@ module Slugforge
           logger.say "Tags for #{project_name}"
           logger.say_status :'production-current', tag_manager.slug_for_tag(project_name, 'production-current') unless pc.nil?
 
-          tags.parallel_map do |tag|
+          tag_list = tags.parallel_map do |tag|
             [tag, tag_manager.slug_for_tag(project_name, tag)]
-          end.sort {|a,b| b[1]<=>a[1] }.each do |tag, slug|
+          end
+          tag_list.sort {|a,b| b[1].to_s<=>a[1].to_s }.each do |tag, slug|
             logger.say_status tag, slug, :yellow
           end
         end

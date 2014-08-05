@@ -4,7 +4,7 @@ module Slugforge
       desc :call, 'export upstart scripts from the Procfile'
       def call
         unless File.exist?(procfile_path)
-          logger.say_status :missing, 'foreman Procfile', :red
+          logger.say_status :missing, 'foreman Procfile', :yellow
           return false
         end
 

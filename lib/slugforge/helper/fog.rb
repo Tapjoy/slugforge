@@ -5,7 +5,7 @@ module Slugforge
     module Fog
       def compute
         @compute ||= ::Fog::Compute.new(aws_credentials.merge({
-          :region   => config.ec2_region,
+          :region   => config.aws_region,
           :provider => 'AWS'
         }))
       end
@@ -49,7 +49,8 @@ module Slugforge
           {
             aws_access_key_id:     token.body['AccessKeyId'],
             aws_secret_access_key: token.body['SecretAccessKey'],
-            aws_session_token:     token.body['SessionToken']
+            aws_session_token:     token.body['SessionToken'],
+            aws_region:            config.aws_region
           }
         end
       end
@@ -75,7 +76,7 @@ module Slugforge
             },
             {
               "Action"   => [
-                 "s3:ListBucket"
+                "s3:ListBucket"
               ],
               "Effect"   => "Allow",
               "Resource" => [ "arn:aws:s3:::#{bucket}" ]

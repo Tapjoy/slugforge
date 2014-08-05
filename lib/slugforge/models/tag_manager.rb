@@ -36,6 +36,9 @@ module Slugforge
       end
     end
 
+    # This method should be called before iterating over a large set of slugs and
+    # calling #tags_for_slug on them. By doing this you are able to query all the
+    # data from AWS in advance using parallelized threads, rather than in serial.
     def memoize_slugs_for_tags(project_name)
       @slugs_for_tag[project_name] ||= {}
       tag_map = tags(project_name).parallel_map do |tag|

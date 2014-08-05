@@ -3,7 +3,8 @@ source 'https://rubygems.org'
 gemspec
 
 # custom fpm version from gemfury, see also: the thor comment below
-gem 'fpm', '~> 1.1.2'
+# The public version is compatible as well
+gem 'fpm', '~> 1.1'
 
 gem 'rake'
 

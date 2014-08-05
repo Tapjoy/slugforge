@@ -165,7 +165,7 @@ module Slugforge
         @deploy_results << ssh_command(ssh, "sudo mv #{slug_name} #{slug_name_with_path}", logger)
       else # AWS S3 command line by default
         logger.log "copying slug to host via aws s3 command (#{name})", {:color => :green, :status => :copy, :log_level => :verbose}
-        @deploy_results << ssh_command(ssh, "sudo -- sh -c 'export AWS_ACCESS_KEY_ID=#{opts[:aws_session][:aws_access_key_id]}; export AWS_SECRET_ACCESS_KEY=#{opts[:aws_session][:aws_secret_access_key]}; export AWS_SECURITY_TOKEN=#{opts[:aws_session][:aws_session_token]}; aws s3 cp #{opts[:s3_url]} #{slug_name_with_path}'; echo \"SSH_COMMAND_EXIT_CODE=$?\"", logger)
+        @deploy_results << ssh_command(ssh, "sudo -- sh -c 'export AWS_ACCESS_KEY_ID=#{opts[:aws_session][:aws_access_key_id]}; export AWS_SECRET_ACCESS_KEY=#{opts[:aws_session][:aws_secret_access_key]}; export AWS_SECURITY_TOKEN=#{opts[:aws_session][:aws_session_token]}; export AWS_DEFAULT_REGION=#{opts[:aws_session][:aws_region]}; aws s3 cp #{opts[:s3_url]} #{slug_name_with_path}'; echo \"SSH_COMMAND_EXIT_CODE=$?\"", logger)
       end
       record_event :copied
       slug_name_with_path

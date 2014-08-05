@@ -6,8 +6,8 @@ module Slugforge
           :desc => 'The AWS Access ID to use for hosts and buckets, unless overridden'
         base.class_option :'aws-secret-key', :type => :string, :aliases => '-S', :group => :config,
           :desc => 'The AWS Secret Key to use for hosts and buckets, unless overridden'
-        base.class_option :'ec2-region', :type => :string, :group => :config,
-          :desc => 'The AWS region to use for EC2 instances'
+        base.class_option :'aws-region', :type => :string, :group => :config,
+          :desc => 'The AWS region to use for EC2 instances and buckets'
         base.class_option :'slug-bucket', :type => :string, :group => :config,
           :desc => 'The S3 bucket to store the slugs and tags in'
         base.class_option :'aws-session-token', :type => :string, :group => :config,
@@ -19,8 +19,8 @@ module Slugforge
         base.class_option :'ssh-username', :type => :string, :aliases => '-u', :group => :config,
           :desc => 'The account used to log in to the host (requires sudo privileges)'
 
-        base.class_option :'allow-slugins', :type => :boolean, :group => :config, :default => true,
-          :desc => 'Allow slugin loading'
+        base.class_option :'disable-slugins', :type => :boolean, :group => :config,
+          :desc => 'Disable slugin loading'
 
         base.class_option :verbose, :type => :boolean, :aliases => '-V', :group => :runtime,
           :desc => 'Display verbose output'
