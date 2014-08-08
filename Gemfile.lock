@@ -67,7 +67,7 @@ GEM
       dotenv (~> 0.11.1)
       thor (~> 0.19.1)
     formatador (0.2.5)
-    fpm (1.1.2)
+    fpm (1.1.0)
       arr-pm (~> 0.0.9)
       backports (>= 2.6.2)
       cabin (>= 0.6.0)
@@ -157,7 +157,7 @@ PLATFORMS
 DEPENDENCIES
   ci_reporter (~> 1.9.0)
   fakefs
-  fpm (~> 1.1.2)
+  fpm (~> 1.1)
   guard-rspec (~> 4)
   pry (~> 0)
   pry-rescue (~> 1)

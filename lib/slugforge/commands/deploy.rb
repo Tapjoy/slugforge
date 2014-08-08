@@ -45,7 +45,7 @@ module Slugforge
         logger.say_status :deploy, "deploying slug #{slug_name} from s3", :green
 
         url = expiring_url(slug)
-        deploy(hosts, slug_name, deploy_options(:copy_type => :aws_cmd, :url => url, :aws_session => aws_session, :s3_url => "s3://#{aws_bucket}/#{name_part}"))
+        deploy(hosts, slug_name, deploy_options(:copy_type => :aws_cmd, :url => url, :aws_session => aws_session, :s3_url => "s3://#{aws_bucket}/#{slug.key}"))
       end
 
       desc 'rollback <tag> <hosts...> [ARGS]', 'deploy the previous slug for a tag to host(s)'

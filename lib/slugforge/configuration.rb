@@ -34,7 +34,7 @@ module Slugforge
 
     option :aws_access_key,    :key => 'aws.access_key',  :option => :'aws-access-key-id', :env => 'AWS_ACCESS_KEY_ID'
     option :aws_secret_key,    :key => 'aws.secret_key',  :option => :'aws-secret-key',    :env => 'AWS_SECRET_ACCESS_KEY'
-    option :ec2_region,        :key => 'ec2.region',      :option => :'ec2-region',        :env => 'EC2_REGION', :default => 'us-east-1'
+    option :aws_region,        :key => 'aws.region',      :option => :'aws-region',        :env => 'AWS_DEFAULT_REGION', :default => 'us-east-1'
     option :slug_bucket,       :key => 'aws.slug_bucket', :option => :'slug-bucket',       :env => 'SLUG_BUCKET'
     option :aws_session_token, :option => :'aws-session-token'
 
@@ -42,7 +42,7 @@ module Slugforge
 
     option :ssh_username, :key => 'ssh.username', :option => :'ssh-username', :env => 'SSH_USERNAME'
 
-    option :allow_slugins, :key => 'allow_slugins', :option => :'allow-slugins', :default => true
+    option :disable_slugins, :key => 'disable_slugins', :option => :'disable-slugins', :env => 'DISABLE_SLUGINS'
 
     attr_reader :values
 
@@ -60,7 +60,7 @@ module Slugforge
     end
 
     def activate_slugins
-      @slugin_manager.activate_slugins(self) if allow_slugins
+      @slugin_manager.activate_slugins(self) unless disable_slugins
     end
 
     protected
@@ -74,7 +74,7 @@ module Slugforge
 
       locate_slugins
       #TODO: disable individual slugins via configuration
-      load_slugins if allow_slugins
+      load_slugins unless disable_slugins
 
       load_configuration_files
       read_env

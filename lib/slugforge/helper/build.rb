@@ -3,7 +3,7 @@ module Slugforge
     module Build
       def verify_procfile_exists!
         unless File.exist?(project_path('Procfile'))
-          raise error_class, "Slugforge must be run in a project with a Procfile (#{project_path('Procfile')})"
+          logger.say_status :warning, "Slugforge should normally be run in a project with a Procfile (#{project_path('Procfile')})", :yellow
         end
       end
 
