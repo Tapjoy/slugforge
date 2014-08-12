@@ -183,7 +183,7 @@ module Slugforge
 
     def install_slug(ssh, slug_name_with_path, logger, opts)
       logger.log "installing package as root #{"for user " + opts[:owner] if opts[:owner]}", {:color => :green, :status => :install, :log_level => :verbose}
-      @deploy_results << ssh_command(ssh, slug_install_command(slug_name_with_path, opts[:deploy_dir], {:owner => opts[:owner], :env => opts[:env]}), logger)
+      @deploy_results << ssh_command(ssh, slug_install_command(slug_name_with_path, opts[:deploy_dir], {:owner => opts[:owner], :env => opts[:env], :force => opts[:force]}), logger)
       @slug_name = slug_name
       record_event :installed
     end

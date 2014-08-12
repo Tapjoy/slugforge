@@ -37,7 +37,7 @@ chmod -R 775 ${SHARED_DIR}
 chown -R $OWNER ${INSTALL_ROOT}
 
 # make sure all deploy scripts are executable
-if [ -e "${INSTALL_DIR}/deploy/*" ] ; then
+if [ -d "${INSTALL_DIR}/deploy" ] ; then
   chmod +x ${INSTALL_DIR}/deploy/*
 fi
 
