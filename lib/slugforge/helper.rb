@@ -1,6 +1,5 @@
 require 'slugforge/helper/build'
 require 'slugforge/helper/config'
-require 'slugforge/helper/enumerable'
 require 'slugforge/helper/fog'
 require 'slugforge/helper/git'
 require 'slugforge/helper/path'
@@ -59,10 +58,10 @@ module Slugforge
       @logger ||= begin
                     log_level = if quiet?
                                   :quiet
-                                elsif verbose?
-                                  :verbose
                                 elsif json?
                                   :json
+                                elsif verbose?
+                                  :verbose
                                 end
                     Slugforge::Logger.new(self.shell, log_level)
                   end

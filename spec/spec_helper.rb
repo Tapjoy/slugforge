@@ -8,6 +8,7 @@ end
 $: << File.expand_path('../../lib', __FILE__)
 require 'slugforge'
 require 'fakefs/spec_helpers'
+require 'rspec-instrumentation-matcher'
 
 ENV["THOR_DEBUG"] = "1"
 
