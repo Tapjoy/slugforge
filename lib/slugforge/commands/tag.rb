@@ -1,44 +1,8 @@
+require 'parallel'
+
 module Slugforge
   module Commands
     class Tag < Slugforge::SubCommand
-      desc 'clean [ARGS]', 'remove tags that point to missing slugs (excluding production-current)'
-      def clean
-        verify_project_name!
-
-        tags = tag_manager.tags(project_name)
-        tags.delete('production-current')
-
-        bucket  # initialize value before using threads
-        logger.say_status :clean, "Reviewing #{tags.count} tags for #{project_name}", :cyan
-        results = tags.parallel_map do |tag|
-          begin
-            slug_file = tag_manager.slug_for_tag(project_name, tag)
-            if !slug_file.nil? && bucket.files.head(slug_file)
-              logger.say '.', :green, false
-              [tag, :valid]
-            else
-              if pretend?
-                [tag, :pretend]
-              else
-                tag_manager.delete_tag(project_name, tag)
-                logger.say '.', :red, false
-                [tag, :deleted]
-              end
-            end
-          rescue Excon::Errors::Forbidden
-            logger.say '.', :yellow, false
-            [tag, :forbidden]
-          end
-        end.sort {|a,b| b[1].to_s <=> a[1].to_s}
-
-        logger.say
-        results.each do |result|
-          tag, status = result
-          next if status == :valid
-          logger.say_status status, tag, (status == :deleted) ? :red : :yellow
-        end
-      end
-
       desc 'clone <tag> <new_tag> [ARGS]', 'create a new tag with the same slug as an existing tag'
       def clone(tag, new_tag)
         verify_project_name!
@@ -54,6 +18,26 @@ module Slugforge
           logger.say_status :clone, "could not find existing tag #{tag} for project '#{project_name}'", :red
           false
         end
+      end
+
+      desc 'delete <tag> [ARGS]', 'delete a tag'
+      option :yes, :type => :boolean, :aliases => '-y', :default => false,
+        :desc => 'answer "yes" to all questions'
+      def delete(tag)
+        verify_project_name!
+
+        status = if tag_manager.tag_exists?(project_name, tag)
+                   if options[:yes] || json? || (ask("Are you sure you wish to delete tag '#{tag}'? [Yn]").downcase != 'n')
+                     tag_manager.delete_tag(project_name, tag)
+                     :deleted
+                   else
+                     :kept
+                   end
+                 else
+                   :not_found
+                 end
+        logger.say_status status, "#{project_name} #{tag}"
+        logger.say_json :status => status, :tag => tag, :project_name => project_name
       end
 
       desc 'history <tag> [ARGS]', 'show history of a project\'s tag'
@@ -84,7 +68,7 @@ module Slugforge
           logger.say "Tags for #{project_name}"
           logger.say_status :'production-current', tag_manager.slug_for_tag(project_name, 'production-current') unless pc.nil?
 
-          tag_list = tags.parallel_map do |tag|
+          tag_list = Parallel.map(tags) do |tag|
             [tag, tag_manager.slug_for_tag(project_name, tag)]
           end
           tag_list.sort {|a,b| b[1].to_s<=>a[1].to_s }.each do |tag, slug|
@@ -101,6 +85,45 @@ module Slugforge
             puts "create_tag(#{project}, #{tag}, #{value['s3']})"
             tag_manager.create_tag(project, tag, value['s3'])
           end
+        end
+      end
+
+      desc 'purge [ARGS]', 'delete tags that point to missing slugs (excluding production-current)'
+      def purge
+        verify_project_name!
+
+        tags = tag_manager.tags(project_name)
+        tags.delete('production-current')
+
+        bucket  # initialize value before using threads
+        logger.say_status :purge, "Reviewing #{tags.count} tags for #{project_name}", :cyan
+        results = Parallel.map(tags) do |tag|
+          begin
+            slug_file = tag_manager.slug_for_tag(project_name, tag)
+            if !slug_file.nil? && bucket.files.head(slug_file)
+              logger.say '+', :green, false
+              [tag, :valid]
+            else
+              if pretend?
+                logger.say '.', :magenta, false
+                [tag, :pretend]
+              else
+                tag_manager.delete_tag(project_name, tag)
+                logger.say '-', :red, false
+                [tag, :deleted]
+              end
+            end
+          rescue Excon::Errors::Forbidden
+            logger.say '?', :yellow, false
+            [tag, :forbidden]
+          end
+        end.sort {|a,b| a[1].to_s <=> b[1].to_s}
+
+        logger.say
+        results.each do |result|
+          tag, status = result
+          next if status == :valid
+          logger.say_status status, tag, (status == :deleted) ? :red : :yellow
         end
       end
 
@@ -127,20 +150,6 @@ module Slugforge
         tag_manager.create_tag(project_name, tag, slug.key)
         logger.say_json :project => project_name, :tag => tag, :slug => slug.key
         logger.say_status :set, "#{project_name} #{tag} to Slug #{slug.key}"
-      end
-
-      desc 'delete <tag> [ARGS]', 'delete a tag'
-      option :yes, :type => :boolean, :aliases => '-y', :default => false,
-        :desc => 'answer "yes" to all questions'
-      def delete(tag)
-        verify_project_name!
-
-        if options[:yes] || (ask("Are you sure you wish to delete tag '#{tag}'? [Yn]").downcase != 'n')
-          tag_manager.delete_tag(project_name, tag)
-          logger.say_status :delete, "#{project_name} #{tag}"
-        else
-          logger.say_status :keep, "#{project_name} #{tag}"
-        end
       end
     end
   end

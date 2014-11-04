@@ -1,3 +1,5 @@
+require 'parallel'
+
 module Slugforge
   class TagManager
     def initialize(opts)
@@ -41,7 +43,7 @@ module Slugforge
     # data from AWS in advance using parallelized threads, rather than in serial.
     def memoize_slugs_for_tags(project_name)
       @slugs_for_tag[project_name] ||= {}
-      tag_map = tags(project_name).parallel_map do |tag|
+      tag_map = Parallel.map(tags(project_name)) do |tag|
         next if @slugs_for_tag[project_name][tag]
         file = nil
         begin
@@ -103,10 +105,17 @@ module Slugforge
       save_tag(project_name, tag, slugs)
     end
 
+    def tag_exists?(project_name, tag)
+      !bucket.files.head(tag_file_name(project_name, tag)).nil?
+    end
+
     def delete_tag(project_name, tag)
       return nil if bucket.files.nil?
-      bucket.files.head(tag_file_name(project_name, tag)).destroy
-      @bucket_dirty = true
+      tag = bucket.files.head(tag_file_name(project_name, tag))
+      unless tag.nil?
+        tag.destroy
+        @bucket_dirty = true
+      end
     end
 
     def save_tag(project_name, tag, slugs)

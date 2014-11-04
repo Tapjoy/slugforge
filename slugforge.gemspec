@@ -22,14 +22,14 @@ Gem::Specification.new do |s|
   s.bindir       = 'bin'
   s.require_paths << 'lib'
 
-  s.add_runtime_dependency('fpm',                '~> 1.1')
-  s.add_runtime_dependency('foreman',            '~> 0.63')
-  s.add_runtime_dependency('thor',               '~> 0.18')
-  s.add_runtime_dependency('fog',                '~> 1.22')
-  s.add_runtime_dependency('unf',                '~> 0')     # for fog
+  s.add_runtime_dependency('fpm',                '~> 1.3')
+  s.add_runtime_dependency('foreman',            '~> 0.74')
+  s.add_runtime_dependency('thor',               '~> 0.19')
+  s.add_runtime_dependency('fog',                '~> 1.23')  # you may also want to install unf
   s.add_runtime_dependency('progress_bar',       '~> 1.0')
-  s.add_runtime_dependency('activesupport',      '~> 4.0.0')
-  s.add_runtime_dependency('json',               '= 1.7.7')  # for Ruby 2.1.0
+  s.add_runtime_dependency('activesupport',      '= 3.2.19')
+  s.add_runtime_dependency('json',               '~> 1.8')
+  s.add_runtime_dependency('parallel',           '~> 1.3')
 
   s.add_development_dependency('rspec'             , '~> 2')
   s.add_development_dependency('guard-rspec'       , '~> 4')
@@ -37,5 +37,12 @@ Gem::Specification.new do |s|
   s.add_development_dependency('pry-rescue'        , '~> 1')
   s.add_development_dependency('pry-stack_explorer', '~> 0')
   s.add_development_dependency('fakefs'            , '~> 0')
+
+  # With Ruby 2 we should use pry-byebug, rather than pry-debugger
+  if RUBY_VERSION < "2"
+    s.add_development_dependency('pry-debugger' , '~> 0')  # required to run specs
+  else
+    s.add_development_dependency('pry-byebug'   , '~> 2')  # required to run specs
+  end
 end
 

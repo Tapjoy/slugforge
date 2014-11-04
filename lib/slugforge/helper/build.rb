@@ -33,7 +33,7 @@ module Slugforge
       end
 
       def package_file_name
-        "#{project_name}-#{date_stamp}-#{git_sha}.slug"
+        "#{project_name}-#{date_stamp}#{'-'+git_sha if git_inside_work_tree?}.slug"
       end
 
       def date_stamp

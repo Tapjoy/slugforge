@@ -1,4 +1,5 @@
 require 'thor'
+require 'json'
 require 'slugforge/helper'
 require 'slugforge/commands'
 
@@ -105,20 +106,20 @@ Example configuration file
       HELP
     end
 
-    if binding.respond_to?(:pry)
-      desc 'pry', 'start a pry session inside of a Thor command', :hide => true
-      option :path, :type => :string, :default => Dir.pwd,
-        :desc => 'The path to the files being packaged'
-      def pry
-        binding.pry
-      end
+    desc 'pry', 'start a pry session inside of a Thor command', :hide => true
+    option :path, :type => :string, :default => Dir.pwd,
+      :desc => 'The path to the files being packaged'
+    def pry
+      require 'pry'
+      binding.pry
+      puts "Thanks for using the super-secret debugger mode. :)"
     end
 
     desc 'debug', 'run a test command inside slugforge', :hide => true
     option :path, :type => :string, :default => Dir.pwd,
       :desc => 'The path to the files being packaged'
     def debug(cmd)
-      eval(cmd)
+      p eval(cmd)
     end
   end
 end

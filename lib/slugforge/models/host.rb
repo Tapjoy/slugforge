@@ -41,6 +41,7 @@ module Slugforge
         :ip         => ip,
         :pattern    => @pattern,
         :slug_name  => @slug_name,
+        :action     => effective_action.to_s,
         :status     => @status.to_s,
         :output     => @deploy_results,
         :start_time => @start_time,
@@ -66,11 +67,16 @@ module Slugforge
     end
 
     def success?
-      [:deployed, :terminated].include?(@status) && output.empty?
+      # Only actual install requests should count; don't count staging only, etc.
+      return true unless install?
+      # TODO: Add support for considering partial failures as 'success'
+
+      # A clean install is absolutely a success; anything else is a failure at this point
+      [:deployed, :terminated].include?(status) && output.empty?
     end
 
     def failed?
-      @status == :failed?
+      @status == :failed
     end
 
     def add_action(action)
@@ -94,12 +100,12 @@ module Slugforge
     end
 
     def effective_action
-      return "installing" if @actions.include?(:install)
-      "staging"
+      return :install if @actions.include?(:install)
+      :stage
     end
 
     def terminated?
-      @status == :terminated?
+      @status == :terminated
     end
 
     def output
@@ -112,7 +118,7 @@ module Slugforge
         if opts[:pretend]
           logger.log "not actually #{effective_action} slug (#{name})", {:color => :yellow, :status => :pretend}
         else
-          logger.say_status :deploy, "#{effective_action} to host #{name} as #{username(opts)}", :green
+          logger.say_status effective_action, "#{name} as #{username(opts)}", (effective_action == :install) ? :green : :yellow
           Net::SSH.start(ssh_host, username(opts), ssh_opts(opts)) do |ssh|
             host_slug = detect_slug(ssh, slug_name, logger) unless opts[:force]
             host_slug ||= copy_slug(ssh, slug_name, logger, opts)
@@ -162,13 +168,17 @@ module Slugforge
         logger.log "copying slug to host via SCP (#{name})", {:color => :green, :status => :copy, :log_level => :verbose}
         scp_upload ip, username(opts), opts[:filename], "#{slug_name}", logger, :ssh => ssh_opts
         logger.log "moving slug from ~ to /mnt as root", {:color => :green, :status => :copy, :log_level => :verbose}
-        @deploy_results << ssh_command(ssh, "sudo mv #{slug_name} #{slug_name_with_path}", logger)
+        ssh_command(ssh, "sudo mv #{slug_name} #{slug_name_with_path}", logger)
       else # AWS S3 command line by default
         logger.log "copying slug to host via aws s3 command (#{name})", {:color => :green, :status => :copy, :log_level => :verbose}
-        @deploy_results << ssh_command(ssh, "sudo -- sh -c 'export AWS_ACCESS_KEY_ID=#{opts[:aws_session][:aws_access_key_id]}; export AWS_SECRET_ACCESS_KEY=#{opts[:aws_session][:aws_secret_access_key]}; export AWS_SECURITY_TOKEN=#{opts[:aws_session][:aws_session_token]}; export AWS_DEFAULT_REGION=#{opts[:aws_session][:aws_region]}; aws s3 cp #{opts[:s3_url]} #{slug_name_with_path}'; echo \"SSH_COMMAND_EXIT_CODE=$?\"", logger)
+        ssh_command(ssh, "sudo -- sh -c 'export AWS_ACCESS_KEY_ID=#{opts[:aws_session][:aws_access_key_id]}; export AWS_SECRET_ACCESS_KEY=#{opts[:aws_session][:aws_secret_access_key]}; export AWS_SECURITY_TOKEN=#{opts[:aws_session][:aws_session_token]}; export AWS_DEFAULT_REGION=#{opts[:aws_session][:aws_region]}; aws s3 cp #{opts[:s3_url]} #{slug_name_with_path} #{s3_cp_opts(opts)}'", logger)
       end
       record_event :copied
       slug_name_with_path
+    end
+
+    def s3_cp_opts(opts)
+      '--quiet' unless opts[:verbose]
     end
 
     def username(opts)
@@ -177,14 +187,21 @@ module Slugforge
 
     def explode_slug(ssh, slug_name_with_path, logger, opts)
       logger.log "exploding package as root #{"for user " + opts[:owner] if opts[:owner]}", {:color => :green, :status => :stage, :log_level => :verbose}
-      @deploy_results << ssh_command(ssh, slug_install_command(slug_name_with_path, opts[:deploy_dir], {:unpack => true, :owner => opts[:owner], :env => opts[:env]}), logger)
+      ssh_command(ssh, slug_install_command(slug_name_with_path, opts[:deploy_dir], {:unpack => true, :owner => opts[:owner], :env => opts[:env]}), logger)
       @slug_name = slug_name
     end
 
     def install_slug(ssh, slug_name_with_path, logger, opts)
       logger.log "installing package as root #{"for user " + opts[:owner] if opts[:owner]}", {:color => :green, :status => :install, :log_level => :verbose}
-      @deploy_results << ssh_command(ssh, slug_install_command(slug_name_with_path, opts[:deploy_dir], {:owner => opts[:owner], :env => opts[:env], :force => opts[:force]}), logger)
+      ssh_command(ssh, slug_install_command(slug_name_with_path, opts[:deploy_dir], {:owner => opts[:owner], :env => opts[:env], :force => opts[:force]}), logger)
       @slug_name = slug_name
+      ActiveSupport::Notifications.publish('install.completed', {
+        :host      => self,
+        :ssh       => ssh,
+        :slug_name => slug_name_with_path,
+        :logger    => logger,
+        :opts      => opts
+      })
       record_event :installed
     end
 
@@ -201,7 +218,7 @@ module Slugforge
     end
 
     def ssh_command(ssh, command, logger)
-      output = ssh.exec!("#{command}")
+      output = ssh.exec!("#{command} ; echo \"SSH_COMMAND_EXIT_CODE=$?\"")
       exit_code_matches = /^SSH_COMMAND_EXIT_CODE=(\d+)$/.match(output)
       exit_code = exit_code_matches ? exit_code_matches[1].to_i : 0
       logger_opts = if exit_code == 0
@@ -211,7 +228,8 @@ module Slugforge
                     end.merge({:status => :command})
       logger.log "#{command}", logger_opts
       logger.log "Output:\n#{output}", logger_opts
-      {:exit_code => exit_code, :output => output, :command => command, :username => ssh.options[:user]}
+      @deploy_results << (result = {:exit_code => exit_code, :output => output, :command => command, :username => ssh.options[:user]})
+      result
     end
 
     def slug_install_command(slug_name_with_path, deploy_dir, opts = {})
@@ -225,8 +243,7 @@ module Slugforge
         opts[:force] ? '-f ' : '',
         opts[:unpack] ? '-u ' : '',
         '-v ', #verbose
-        '| tee -a /var/log/slug_deploy.log ',
-        "; echo \"SSH_COMMAND_EXIT_CODE=$?\"'"
+        "| tee -a /var/log/slug_deploy.log'"
       ].join('')
     end
   end

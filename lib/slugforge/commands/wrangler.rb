@@ -39,6 +39,23 @@ module Slugforge
         logger.say_status :fetched, "pull complete, saved to #{slug.attributes[:name]}"
       end
 
+      desc 'lookup [name_part]', 'lookup the full name for a slug'
+      option :latest, :type => :boolean, :default => false,
+        :desc => 'find the newest matching slug'
+      def lookup(name_part)
+        verify_project_name!
+
+        slug = find_slug(name_part, :latest => options[:latest], :raise => false)
+
+        unless slug.nil?
+          logger.say_status :lookup, "#{slug.attributes[:name]} (#{slug.attributes[:pretty_length]})", :yellow
+          logger.say_json :name => slug.attributes[:name]
+        else
+          logger.say_status :not_found, "#{name_part}", :red
+          logger.say_json :name => nil
+        end
+      end
+
       desc 'list [ARGS]', 'list published slugs for a project'
       option :count, :type => :numeric, :aliases => '-c', :default => 10,
         :desc => 'how many slugs to list'
@@ -104,37 +121,70 @@ module Slugforge
       option :yes, :type => :boolean, :aliases => '-y', :default => false,
         :desc => 'answer "yes" to all questions'
       option :keep, :type => :numeric, :aliases => '-k', :default => 10,
-        :desc => 'number of slugs to keep'
+        :desc => 'minimum number of slugs to keep'
+      option :days, :type => :numeric, :aliases => '-d', :default => 14,
+        :desc => 'delete slugs that are more than the specified number of days old'
       option :all, :type => :boolean, :aliases => '-a', :default => false,
         :desc => 'purge all slugs'
+      option :must_keep_tags, :type => :string, :aliases => '-must-keep-tags', :default => "production-current",
+        :desc => 'comma separated list of slug tags to be spared form the purge. defaults to `production-current`'
+
       def purge
         raise error_class, "keep must be greater than 0" if !options[:all] && options[:keep] <= 0
+        tags_to_keep = options[:must_keep_tags].split(',')
+        slugs_to_keep = tags_to_keep.collect{|tag| tag_manager.slug_for_tag(project_name, tag)}
+        tags_to_keep.each{|tag| logger.say_status :saved, "Tag #{tag} has been spared from purge.", :green}
 
-        slugs = self.slugs(project_name).values
+        slugs = self.slugs(project_name).values.select {|slug| !slugs_to_keep.include?(slug.key)}
+        logger.say_status :purge, "Reviewing #{slugs.size} slugs for #{project_name}", :cyan
 
         if options[:all]
           if !options[:yes] && ask("Are you sure you wish to delete #{slugs.size} slugs for #{project_name}? [yN]").downcase == 'y'
             options[:yes] = true
           end
 
-          if options[:yes]
-            slugs.each do |slug|
-              slug.destroy
-              logger.say_status :destroy, slug.key, :red
-            end
+          if !options[:yes]
+            slugs = nil
           end
-        elsif slugs.size > options[:keep]
-          slugs.slice(options[:keep]..-1).each do |slug|
-            if options[:yes] || (ask("Are you sure you wish to delete #{slug.attributes[:name]}? [Yn]").downcase != 'n')
-              slug.destroy
-              logger.say_status :destroy, slug.key, :red
-            else
-              logger.say_status :keep, slug.key, :green
-            end
-          end
-        else
-          logger.say "Aborting, only #{slugs.size} slugs for #{project_name} and we want to keep #{options[:keep]}"
+        elsif options[:keep] > slugs.size
+          return logger.say "Aborting, only #{slugs.size} slugs for #{project_name} and we want to keep #{options[:keep]}"
         end
+
+        keep_index = slugs.size - options[:keep]
+        results = Parallel.map_with_index(slugs) do |slug, index|
+          if (age_in_days(slug.attributes[:age]) > options[:days]) && (index < keep_index)
+            if pretend?
+              logger.say '.', :magenta, false
+              [slug.key, :pretend]
+            else
+              slug.destroy
+              logger.say '-', :red, false
+              [slug.key, :deleted]
+            end
+          else
+            logger.say '+', :green, false
+            [slug.key, :retain]
+          end
+        end.sort {|a,b| (b[1].to_s + b[0]) <=> (a[1].to_s + a[0]) }
+
+        logger.say
+        results.each do |result|
+          name, status = result
+          logger.say_status status, name, status_color(status)
+        end
+      end
+
+      private
+
+      def age_in_days(age)
+        (age / (24*60*60)).floor
+      end
+
+      def status_color(status)
+        { :deleted => :red,
+          :retain  => :green,
+          :pretend => :magenta
+        }[status]
       end
     end
   end

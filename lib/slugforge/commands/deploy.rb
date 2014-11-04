@@ -97,7 +97,8 @@ module Slugforge
           :identity   => options[:identity],
           :env        => options[:env],
           :force      => force?,
-          :pretend    => pretend?
+          :pretend    => pretend?,
+          :verbose    => verbose?
         }.merge(opts)
       end
 

@@ -1,3 +1,5 @@
+require 'parallel'
+
 module Slugforge
   module Helper
     module Project
@@ -9,7 +11,11 @@ module Slugforge
 
       protected
       def tag_manager
-        @tag_manager ||= TagManager.new(:s3 => s3, :bucket => aws_bucket)
+        @tag_manager ||= begin
+                           TagManager.new(:s3 => s3, :bucket => aws_bucket)
+                         rescue Excon::Errors::Forbidden
+                           raise error_class, "You do not seem to have permissions to access the slug bucket '#{aws_bucket}'. Try specifying `--slug-bucket=<bucket_name>`."
+                         end
       end
 
       def bucket
@@ -25,15 +31,14 @@ module Slugforge
 
       def verify_project_name!(project=nil, opts={})
         project ||= project_name
-        tm = TagManager.new(:s3 => s3, :bucket => aws_bucket)
-        return if tm.projects.include?(project)
+        return if tag_manager.projects.include?(project)
         raise error_class, "Project name could not be determined" unless project
       end
 
       def files
         # If a block is provided, filter the files before mapping them
         files = block_given? ? yield(bucket.files) : bucket.files
-        Hash[files.parallel_map_with_index do |file, i|
+        Hash[files.map.with_index(0) do |file, i|
           key = file.key.split('/', 2)
 
           file.attributes.merge!({
@@ -65,11 +70,13 @@ module Slugforge
 
       # finds a slug with name_part somewhere in the name. Use enough of the name to make
       # it unique or this will just return the first slug it finds
-      def find_slug(name_part)
+      def find_slug(name_part, opts={})
         s = self.slugs(project_name).values.find_all { |f| f.attributes[:key].include?(name_part) }
         if s.size == 0
-          raise error_class, "unable to find a slug from '#{name_part}'. Use 'wrangler list' command to see available slugs"
+          raise error_class, "unable to find a slug from '#{name_part}'. Use 'wrangler list' command to see available slugs" unless opts[:raise] == false
+          return nil
         elsif s.size > 1
+          return s.last if opts[:latest]
           raise error_class, "ambiguous slug name. Found more than one slug with '#{name_part}' in their names.\n#{s.map{|sl| File.basename(sl.key)} * "\n"}\n Use 'wrangler list' command to see available slugs"
         end
         s[0]
