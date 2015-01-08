@@ -314,3 +314,6 @@ additional details.
 Tapjoy is not currently accepting contributions to this code at this time. We are in the process of
 formalizing our Contributor License Agreement and will update this section with those details when
 they are available.
+
+## Thank You ##
+Thank you to the entire engineering team at Tapjoy.  Including, but not limited to, @jjrussell, @andyleclair, @jlogsdon, @ofanite, and @ehealy.
