@@ -5,7 +5,7 @@ module Slugforge
 
   class AwsTagGroup < HostGroup
     def self.matcher
-      /^(\w+)=(\S+)$/
+      /^([\w:]+)=(\S+)$/
     end
 
     def initialize(pattern, compute)
